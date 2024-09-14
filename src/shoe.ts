@@ -1,22 +1,21 @@
-'use strict';
-
-const Card = require('./card.js');
-
-const EventEmitter = require('events');
-const shuffleArray = require('shuffle-array');
+import { EventEmitter } from 'events';
+import shuffleArray from 'shuffle-array';
+import { Card } from './card';
 
 const CutCardLengthFromBottom = 16;
 
 /**
  * Baccarat shoe
  */
-class Shoe extends EventEmitter {
+export class Shoe extends EventEmitter {
+    decks: number;
+    cards: Card[];
 
     /**
      * Cards left
      * @return {number} Count of cards left
      */
-    get cardsLeft() {
+    get cardsLeft(): number {
         return this.cards.length;
     }
 
@@ -24,7 +23,7 @@ class Shoe extends EventEmitter {
      * Number of cards before the cut card
      * @return {number} Count of cards left before cut card
      */
-    get cardsBeforeCutCard() {
+    get cardsBeforeCutCard(): number {
         return Math.max(0, this.cardsLeft - CutCardLengthFromBottom);
     }
 
@@ -32,18 +31,16 @@ class Shoe extends EventEmitter {
      * Has the cut card been reached
      * @return {boolean} true if the cut card has been reached, false otherwise
      */
-    get cutCardReached() {
+    get cutCardReached(): boolean {
         return this.cardsBeforeCutCard <= 0;
     }
 
     /**
      * Shoe constructor
      * @param {number} decks - Count of decks to be included in the shoe
-     * @constructor
      */
-    constructor(decks) {
+    constructor(decks: number) {
         super();
-
         this.decks = decks;
         this.cards = [];
     }
@@ -51,7 +48,7 @@ class Shoe extends EventEmitter {
     /**
      * Creates the cards array
      */
-    createDecks() {
+    createDecks(): void {
         for (let i = 0; i < this.decks; i++) {
             for (let j = 0; j < 52; j++) {
                 this.cards.push(this.createCard(j));
@@ -62,7 +59,7 @@ class Shoe extends EventEmitter {
     /**
      * Shuffles the cards array
      */
-    shuffle() {
+    shuffle(): void {
         shuffleArray(this.cards);
     }
 
@@ -70,12 +67,11 @@ class Shoe extends EventEmitter {
      * Draws the next card
      * @return {Card} Card drawn
      */
-    draw() {
-        if (this.cards.length == 0) {
+    draw(): Card | undefined {
+        if (this.cards.length === 0) {
             this.createDecks();
             this.shuffle();
         }
-
         return this.cards.pop();
     }
 
@@ -83,7 +79,7 @@ class Shoe extends EventEmitter {
      * To string
      * @return {string} String representation of the shoe
      */
-    toString() {
+    toString(): string {
         return `[${this.cards.map((c) => c.toString()).join(', ')}]`;
     }
 
@@ -92,15 +88,13 @@ class Shoe extends EventEmitter {
      * @param {number} value - The integer value to be converted
      * @return {Card} Card created
      */
-    createCard(value) {
+    createCard(value: number): Card {
         const suit = Math.floor(value / 13);
         const cardValue = value % 13;
 
-        let suitString = Card.DefaultSuits[suit];
-        let valueString = Card.DefaultValues[cardValue];
+        const suitString = Card.DefaultSuits[suit];
+        const valueString = Card.DefaultValues[cardValue];
 
         return new Card(suitString, valueString);
     }
 }
-
-module.exports = Shoe;
