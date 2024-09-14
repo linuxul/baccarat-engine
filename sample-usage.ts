@@ -31,7 +31,7 @@ if (gameEngine.isBurnNeeded) {
 
 // 게임 진행
 const hand: Hand = gameEngine.dealGame();
-// console.log('Hand = ', JSON.stringify(hand));
+console.log('Hand = ', JSON.stringify(hand));
 
 // 게임 결과 계산
 const result = gameEngine.resultsEngine.calculateGameResult(hand);
