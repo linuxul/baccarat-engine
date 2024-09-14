@@ -113,7 +113,7 @@ export class BaccaratResultsEngine {
      * @param {Card[]} cards - Baccarat 게임에서 사용된 카드 배열
      * @return {number} 카드 값 (0 ~ 9)
      */
-    private calculateHandValue(cards: Card[]): number {
+    public calculateHandValue(cards: Card[]): number {
         const cardsValue = cards.reduce((handValue, card) => {
             return BaccaratResultsEngine.valueForCard(card) + handValue;
         }, 0);

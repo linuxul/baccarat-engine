@@ -1,13 +1,14 @@
 import { Hand } from '../hand';
 import { BaccaratResultsEngine } from '../baccaratResultsEngine';
 import { Shoe } from '../shoe';
+import { Card } from '../card';
 
 /**
  * Plays a baccarat game according to Punto Banco rules
  */
 export class BaccaratGameEngine {
-    private resultsEngine: BaccaratResultsEngine;
-    private shoe: Shoe;
+    public resultsEngine: BaccaratResultsEngine;
+    public shoe: Shoe;
 
     /**
      * BaccaratGameEngine

@@ -1,118 +1,274 @@
-export = RoadmapGenerator;
+/* eslint-disable max-len */
+
+const _ = require('lodash'); // lodash 모듈을 CommonJS 방식으로 가져옴
+import { GameResult } from '../gameResult.js';
+
+// BeadPlate 및 BeadPlateConfig의 타입 정의
+interface BeadPlate {
+    result: GameResult;
+    column: number;
+    row: number;
+}
+
+interface BeadPlateConfig {
+    columns?: number;
+    rows?: number;
+}
+
+// BigRoad 및 관련 타입 정의
+interface BigRoadItem {
+    result: GameResult;
+    column: number;
+    row: number;
+    logicalColumn: number;
+    ties: GameResult[];
+}
+
+interface BigRoadConfig {
+    columns?: number;
+    rows?: number;
+    scroll?: boolean;
+}
+
+interface ColumnDictionary {
+    logicalColumn: number;
+    logicalColumnDepth: number;
+    outcome: string;
+}
 
 /**
  * Generator for common baccarat roadmaps.
  */
-declare class RoadmapGenerator {
-  constructor();
-  /**
-   * Calculates a bead plate based on games played.
-   * @param {GameResult[]} gameResults The game results to
-   *  calculate the roadmap from.
-   * @param {BeadPlateConfig} config The configuration object for drawing options.
-   * @return {BeadPlate} A data representation of how a bead plate can
-   *  be drawn from this calculation.
-   */
-  beadPlate(gameResults: GameResult[], config?: BeadPlateConfig): BeadPlate;
+export class RoadmapGenerator {
 
-  /**
-   * Calculates a big road based on games played.
-   * @param {GameResult[]} gameResults The game results to calculate the
-   *  roadmap from.
-   * @param {BigRoadConfig} config The configuration object for drawing options.
-   * @return {BigRoad} A data representation of how a big road can
-   *  be drawn from this calculation.
-   */
-  bigRoad(gameResults: GameResult[], config?: BigRoadConfig): BigRoad;
+    /**
+     * RoadmapGenerator
+     * @constructor
+     */
+    constructor() {
+    }
 
-  /**
-   * Big road column definitions
-   * @private
-   * @param {BigRoad} bigRoad The big road data
-   * @return {ColumnDictionary} Map of columns
-   */
-  bigRoadColumnDefinitions(bigRoad: BigRoad): ColumnDictionary;
+    /**
+     * Calculates a bead plate based on games played.
+     * @param {GameResult[]} gameResults The game results to calculate the roadmap from.
+     * @param {BeadPlateConfig} config The configuration object for drawing options.
+     * @return {BeadPlate[]} A data representation of how a bead plate can be drawn from this calculation.
+     */
+    beadPlate(gameResults: GameResult[] = [], { columns = 6, rows = 6 }: BeadPlateConfig): BeadPlate[] {
+        const DisplayEntries = columns * rows;
+        const ColumnSize = rows;
 
-  /**
-   * Derived road using the given cycle
-   * @private
-   * @param {BigRoad} bigRoad The big road data
-   * @param {number} cycleLength The big road data
-   * @return {BigEyeRoad} A new list of big road items whose view is scrolled
-   * to have the amount of drawing columns visible.
-   */
-  private derivedRoad(bigRoad: BigRoad, cycleLength: number): BigEyeRoad;
+        // lodash의 takeRight 메서드를 사용해 gameResults의 최근 항목을 가져옵니다.
+        gameResults = _.takeRight(gameResults, DisplayEntries);
 
-  /**
-   * Generates the big eye road - derived road with a cycle of 1
-   * @public
-   * @param {BigRoad} bigRoad The big road data
-   * @return {BigEyeRoad} A new list of derived road items
-   */
-  public bigEyeRoad(bigRoad: BigRoad): BigEyeRoad;
+        return _.range(0, gameResults.length).map((index) => ({
+            result: gameResults[index] || ({} as GameResult),
+            column: this.columnForGameNumber(index, ColumnSize),
+            row: this.rowForGameNumber(index, ColumnSize),
+        }));
+    }
 
-  /**
-   * Generates the small road - derived road with a cycle of 2
-   * @public
-   * @param {BigRoad} bigRoad The big road data
-   * @return {SmallRoad} A new list of derived road items
-   */
-  public smallRoad(bigRoad: BigRoad): SmallRoad;
+    /**
+     * Calculates a big road based on games played.
+     * @param {GameResult[]} gameResults The game results to calculate the roadmap from.
+     * @param {BigRoadConfig} config The configuration object for drawing options.
+     * @return {BigRoadItem[]} A data representation of how a big road can be drawn from this calculation.
+     */
+    bigRoad(gameResults: GameResult[] = [], { columns = 12, rows = 6, scroll = true }: BigRoadConfig = {}): BigRoadItem[] {
+        let tieStack: GameResult[] = [];
+        let placementMap: Record<string, BigRoadItem> = {};
+        let logicalColumnNumber = 0;
+        let lastItem: GameResult | undefined;
+        let returnList: BigRoadItem[] = [];
+        let maximumColumnReached = 0;
 
-  /**
-   * Generates the cockroach pig road - derived road with a cycle of 3
-   * @public
-   * @param {BigRoad} bigRoad The big road data
-   * @return {CockroachPigRoad} A new list of derived road items
-   */
-  public cockroachPig(bigRoad: BigRoad): CockroachPigRoad;
+        gameResults.forEach((gameResult) => {
+            if (gameResult.outcome === GameResult.Tie) {
+                tieStack.push(gameResult);
+            } else {
+                if (lastItem) {
+                    let lastItemInResults = _.last(returnList);
+                    if (lastItem.outcome === GameResult.Tie) {
+                        if (lastItemInResults) {
+                            lastItemInResults.ties = _.cloneDeep(tieStack);
+                            tieStack = [];
+                            if (lastItemInResults.result.outcome !== gameResult.outcome) {
+                                logicalColumnNumber++;
+                            }
+                        }
+                    } else if (lastItem.outcome !== gameResult.outcome) {
+                        logicalColumnNumber++;
+                        tieStack = [];
+                    } else {
+                        tieStack = [];
+                    }
+                }
 
-  /**
-   * Scrolls the big road drawing to only show the specified amount of
-   * drawing columns.
-   * @private
-   * @param {BigRoad} results The big road data
-   * @param {number} highestDrawingColumn The highest column reached in
-   * the big road supplied.
-   * @param {number} drawingColumns The amount of columns to show in the
-   * big road
-   * @return {BigRoad} A new list of big road items whose view is scrolled
-   * to have the amount of drawing columns visible.
-   */
-  private scrollBigRoad(
-    results: BigRoad,
-    highestDrawingColumn: number,
-    drawingColumns: number
-  ): BigRoad;
+                let probeColumn = logicalColumnNumber;
+                let probeRow = 0;
+                let done = false;
 
-  /**
-   * Generates the column number for the game number of a game based
-   * on the column size of the table to be drawn.
-   * @private
-   * @param {number} gameNumber The game number of the item in the sequence.
-   * @param {number} columnSize The column size of the drawn table
-   * @return {number} The column number that this gameNumber is drawn to.
-   */
-  private columnForGameNumber(gameNumber: number, columnSize: number): number;
+                while (!done) {
+                let keySearch = `${probeColumn}.${probeRow}`;
+                let keySearchBelow = `${probeColumn}.${probeRow + 1}`;
 
-  /**
-   * Generates the row number for the game number of a game based
-   * on the column size of the table to be drawn.
-   * @private
-   * @param {number} gameNumber The game number of the item in the sequence.
-   * @param {number} columnSize The column size of the drawn table
-   * @return {number} The row number that this gameNumber is drawn to.
-   */
-  private rowForGameNumber(gameNumber: number, columnSize: number): number;
+                if (!_.get(placementMap, keySearch)) {
+                    let newEntry: BigRoadItem = {
+                        row: probeRow,
+                        column: probeColumn,
+                        logicalColumn: logicalColumnNumber,
+                        ties: _.cloneDeep(tieStack),
+                        result: gameResult,
+                    };
+                    _.set(placementMap, keySearch, newEntry);
+                    returnList.push(newEntry);
+
+                    done = true;
+                } else if (probeRow + 1 >= rows) {
+                    probeColumn++;
+                } else if (!_.get(placementMap, keySearchBelow)) {
+                    probeRow++;
+                } else if (_.get(placementMap, keySearchBelow)?.result.outcome === gameResult.outcome) {
+                    probeRow++;
+                } else {
+                    probeColumn++;
+                }
+            }
+
+            maximumColumnReached = Math.max(maximumColumnReached, probeColumn);
+        }
+
+        lastItem = gameResult;
+        });
+
+        if (_.isEmpty(returnList) && tieStack.length > 0) {
+            returnList.push({
+                ties: _.cloneDeep(tieStack),
+                column: 0,
+                row: 0,
+                logicalColumn: 0,
+                result: {} as GameResult,
+            });
+        } else if (!_.isEmpty(returnList)) {
+            _.last(returnList)!.ties = _.cloneDeep(tieStack);
+        }
+
+        if (scroll) {
+            returnList = this.scrollBigRoad(returnList, maximumColumnReached, columns);
+        }
+
+        return returnList;
+    }
+
+    /**
+     * Big road column definitions
+     * @param {BigRoadItem[]} bigRoad The big road data
+     * @return {Record<number, ColumnDictionary>} Map of columns
+     */
+    bigRoadColumnDefinitions(bigRoad: BigRoadItem[]): Record<number, ColumnDictionary> {
+        let columnDictionary: Record<number, ColumnDictionary> = {};
+
+        bigRoad.forEach((item) => {
+            if (!_.has(columnDictionary, item.logicalColumn)) {
+                columnDictionary[item.logicalColumn] = {
+                    logicalColumn: item.logicalColumn,
+                    logicalColumnDepth: 1,
+                    outcome: item.result.outcome,
+                };
+            } else {
+                columnDictionary[item.logicalColumn].logicalColumnDepth++;
+            }
+        });
+
+        return columnDictionary;
+    }
+
+    /**
+     * Derived road using the given cycle
+     * @param {BigRoadItem[]} bigRoad The big road data
+     * @param {number} cycleLength Cycle used to calculate the derived road
+     * @return {string[]} A new list of derived road items
+     */
+    derivedRoad(bigRoad: BigRoadItem[], cycleLength: number): string[] {
+        let columnDefinitions = this.bigRoadColumnDefinitions(bigRoad);
+        let k = cycleLength;
+        let outcomes: string[] = [];
+
+        Object.values(columnDefinitions).forEach((bigRoadColumn) => {
+        let outcome = 'blue';
+        let n = bigRoadColumn.logicalColumn;
+
+        for (let m = 0; m < bigRoadColumn.logicalColumnDepth; m++) {
+            let rowMDepth = m + 1;
+
+            if (rowMDepth >= 2) {
+                let compareColumn = n - k;
+                if (compareColumn <= 0) continue;
+
+                let pColumn = columnDefinitions[compareColumn];
+                if (!pColumn) continue;
+
+                let p = pColumn.logicalColumnDepth;
+                if (rowMDepth <= p) {
+                    outcome = 'red';
+                } else if (rowMDepth === p + 1) {
+                    outcome = 'blue';
+                } else if (rowMDepth > p + 1) {
+                    outcome = 'red';
+                }
+
+                outcomes.push(outcome);
+            } else {
+            let kDistanceColumn = n - (k + 1);
+            let leftColumn = n - 1;
+
+            let kDistanceColumnDefinition = columnDefinitions[kDistanceColumn];
+            let leftColumnDefinition = columnDefinitions[leftColumn];
+
+            if (kDistanceColumnDefinition && leftColumnDefinition) {
+                if (kDistanceColumnDefinition.logicalColumnDepth === leftColumnDefinition.logicalColumnDepth) {
+                    outcome = 'red';
+                } else {
+                    outcome = 'blue';
+                }
+
+                outcomes.push(outcome);
+            }
+            }
+        }
+        });
+
+        return outcomes;
+    }
+
+    bigEyeRoad(bigRoad: BigRoadItem[]): string[] {
+        return this.derivedRoad(bigRoad, 1);
+    }
+
+    smallRoad(bigRoad: BigRoadItem[]): string[] {
+        return this.derivedRoad(bigRoad, 2);
+    }
+
+    cockroachPig(bigRoad: BigRoadItem[]): string[] {
+        return this.derivedRoad(bigRoad, 3);
+    }
+
+    scrollBigRoad(results: BigRoadItem[] = [], highestDrawingColumn: number, drawingColumns: number): BigRoadItem[] {
+        const highestDrawableIndex = drawingColumns - 1;
+        const offset = Math.max(0, highestDrawingColumn - highestDrawableIndex);
+
+        let validItems = results.filter((value) => (value.column - offset) >= 0);
+
+        validItems.forEach((value) => value.column -= offset);
+
+        return validItems;
+    }
+
+    columnForGameNumber(gameNumber: number, columnSize: number): number {
+        return Math.floor(gameNumber / columnSize);
+    }
+
+    rowForGameNumber(gameNumber: number, columnSize: number): number {
+        return gameNumber % columnSize;
+    }
 }
-import GameResult = require("../gameResult");
-import {
-  BigRoad,
-  BigRoadConfig,
-  BigEyeRoad,
-  SmallRoad,
-  CockroachPigRoad,
-  ColumnDictionary,
-  BeadPlateConfig,
-  BeadPlate,
-} from "./interfaces";

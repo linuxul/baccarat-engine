@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import shuffleArray from 'shuffle-array';
+import shuffleArray = require('shuffle-array');
 import { Card } from './card';
 
 const CutCardLengthFromBottom = 16;
